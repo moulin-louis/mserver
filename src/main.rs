@@ -1,13 +1,14 @@
-use std::{io, thread};
 use std::collections::HashMap;
 use std::error::Error;
-use std::io::ErrorKind::WouldBlock;
 use std::net::{SocketAddr, TcpListener, TcpStream};
+use std::os::fd::AsFd;
 use std::sync::{Arc, Mutex};
+use std::thread;
 use std::thread::sleep;
 use std::time::Duration;
 
 use lazy_static::lazy_static;
+use uuid::Uuid;
 
 use mpacket::Packet;
 
@@ -48,9 +49,15 @@ lazy_static! {
     };
 }
 lazy_static! {
-    static ref LOGIN_HANDLERS: HashMap<i64, HandlerFunction> = {
+    static ref LOGIN_HANDLERS_TOSERVER: HashMap<i64, HandlerFunction> = {
         let mut m: HashMap<i64, HandlerFunction> = HashMap::new();
+        m.insert(0x0, login_handler::login_start);
         m.insert(0x05, login_handler::cookie_request);
+        m
+    };
+    static ref LOGIN_HANDLERS_TOCLIENT: HashMap<i64, HandlerFunction> = {
+        let mut m: HashMap<i64, HandlerFunction> = HashMap::new();
+        m.insert(0x02, login_handler::login_success);
         m
     };
 }
@@ -69,7 +76,10 @@ struct Client {
     prot_version: i64,
     server_address: String,
     server_port: u16,
-    left_over_packet: Option<Vec<u8>>,
+    bytes_packet: Vec<u8>,
+    username: String,
+    uuid: Uuid,
+    // cursor_packet: Cursor<Vec<u8>>,
 }
 
 impl Client {
@@ -95,7 +105,7 @@ impl Client {
             Status => STATUS_HANDLERS.get(&packet.packet_id).unwrap_or_else(|| {
                 panic!("no handle fn for packetID {}: Status", packet.packet_id)
             }),
-            Login => LOGIN_HANDLERS
+            Login => LOGIN_HANDLERS_TOSERVER
                 .get(&packet.packet_id)
                 .unwrap_or_else(|| panic!("no handle fn for packetID {}: Login", packet.packet_id)),
             Transfer => TRANSFER_HANDLERS.get(&packet.packet_id).unwrap_or_else(|| {
@@ -107,37 +117,39 @@ impl Client {
     }
 }
 
+fn handle_clients(clients_arc: Arc<Mutex<Vec<Client>>>) {
+    loop {
+        let mut clients = clients_arc.lock().unwrap();
+        let mut bad_clients: Vec<usize> = Vec::new();
+        for (index, client) in clients.iter_mut().enumerate() {
+            let mut packet = match Packet::new(client) {
+                Ok(pck) => pck,
+                Err(e) => {
+                    eprintln!("Error when crafting packet: {e}");
+                    bad_clients.push(index);
+                    continue;
+                }
+            };
+            client.process_packet(&mut packet).unwrap();
+            client
+                .bytes_packet
+                .append(&mut packet.return_leftover().unwrap());
+        }
+        for &pos in bad_clients.iter().rev() {
+            //removing client  that give an error before
+            clients.remove(pos);
+        }
+        drop(clients);
+        sleep(Duration::from_millis(800));
+    }
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     let clients_arc = Arc::new(Mutex::new(Vec::<Client>::new()));
     let clients_arc_clone = Arc::clone(&clients_arc);
     let listener = TcpListener::bind("127.0.0.1:25565").unwrap();
     let client_thread = thread::spawn(move || {
-        loop {
-            let mut clients = clients_arc.lock().unwrap();
-            let mut bad_clients: Vec<usize> = Vec::new();
-            for (index, client) in clients.iter_mut().enumerate() {
-                let mut packet = match Packet::new(client) {
-                    Ok(pck) => pck,
-                    Err(e) => {
-                        if let Some(io_error) = e.downcast_ref::<io::Error>() {
-                            if io_error.kind() == WouldBlock {
-                                continue;
-                            }
-                        }
-                        eprintln!("Error when crafting packet: {e}");
-                        bad_clients.push(index);
-                        continue;
-                    }
-                };
-                client.process_packet(&mut packet).unwrap()
-            }
-            for &pos in bad_clients.iter().rev() {
-                //removing client  that give an error before
-                clients.remove(pos);
-            }
-            drop(clients);
-            sleep(Duration::from_millis(800));
-        }
+        handle_clients(clients_arc);
     });
     loop {
         let (tcp_stream, addr) = match listener.accept() {
@@ -154,7 +166,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             prot_version: 0,
             server_address: String::new(),
             server_port: 0,
-            left_over_packet: None,
+            bytes_packet: Vec::new(),
+            username: String::new(),
+            uuid: Uuid::nil(),
         };
         client.tcp_stream.set_nonblocking(true).unwrap();
         clients_arc_clone.lock().unwrap().push(client);

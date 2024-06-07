@@ -18,8 +18,5 @@ pub fn set_protocol(client: &mut Client, packet: &mut Packet) -> Result<(), Box<
         3 => Transfer,
         err => panic!("PANIC WRONG NEXT STATE: got {err}"),
     };
-    let mut leftover: Vec<u8> = Vec::new();
-    packet.data.read_to_end(&mut leftover).unwrap();
-    client.left_over_packet = Some(leftover);
     Ok(())
 }
