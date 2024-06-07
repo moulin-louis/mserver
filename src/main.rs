@@ -11,38 +11,11 @@ use lazy_static::lazy_static;
 
 use mpacket::Packet;
 
+use crate::StateClient::*;
+
+mod handshaking_handler;
+mod login_handler;
 mod mpacket;
-
-trait PacketHandler {
-    fn handle_packet(&self, client: &mut Client, packet: &Packet) -> Result<(), Box<dyn Error>>;
-}
-
-struct TargetHandler;
-impl PacketHandler for TargetHandler {
-    fn handle_packet(&self, client: &mut Client, packet: &Packet) -> Result<(), Box<dyn Error>> {
-        // Handle Target packets
-        println!("Target packet handler: {:?}", packet);
-        Ok(())
-    }
-}
-
-lazy_static! {
-    static ref HANDSHAKING_HANDLERS: HashMap<i64, Box<dyn PacketHandler>> = {
-        let mut m = HashMap::new();
-        m.insert(0, Box::new(HandshakingHandler));
-        // Add more handlers for different packet IDs
-        m
-    };
-
-    static ref TARGET_HANDLERS: HashMap<i64, Box<dyn PacketHandler>> = {
-        let mut m = HashMap::new();
-        m.insert(1, Box::new(TargetHandler));
-        // Add more handlers for different packet IDs
-        m
-    };
-
-    // Define other state handlers similarly...
-}
 
 #[derive(Debug, Eq, PartialEq)]
 enum StateClient {
@@ -53,45 +26,102 @@ enum StateClient {
     Transfer,
 }
 
+type HandlerFunction = fn(client: &mut Client, packet: &mut Packet) -> Result<(), Box<dyn Error>>;
+
+lazy_static! {
+    static ref HANDSHAKE_HANDLERS: HashMap<i64, HandlerFunction> = {
+        let mut m: HashMap<i64, HandlerFunction> = HashMap::new();
+        m.insert(0x0, handshaking_handler::set_protocol);
+        m
+    };
+}
+lazy_static! {
+    static ref TARGET_HANDLERS: HashMap<i64, HandlerFunction> = {
+        let mut m: HashMap<i64, HandlerFunction> = HashMap::new();
+        m
+    };
+}
+lazy_static! {
+    static ref STATUS_HANDLERS: HashMap<i64, HandlerFunction> = {
+        let mut m: HashMap<i64, HandlerFunction> = HashMap::new();
+        m
+    };
+}
+lazy_static! {
+    static ref LOGIN_HANDLERS: HashMap<i64, HandlerFunction> = {
+        let mut m: HashMap<i64, HandlerFunction> = HashMap::new();
+        m.insert(0x05, login_handler::cookie_request);
+        m
+    };
+}
+lazy_static! {
+    static ref TRANSFER_HANDLERS: HashMap<i64, HandlerFunction> = {
+        let mut m: HashMap<i64, HandlerFunction> = HashMap::new();
+        m
+    };
+}
 
 #[derive(Debug)]
 struct Client {
     status: StateClient,
     tcp_stream: TcpStream,
     addr: SocketAddr,
+    prot_version: i64,
+    server_address: String,
+    server_port: u16,
+    left_over_packet: Option<Vec<u8>>,
 }
 
-
 impl Client {
-    pub fn process_packet(&mut self, packet: &Packet) -> Result<(), Box<dyn Error>> {
-        match self.status {
-            StateClient::Handshaking => {}
-            StateClient::Target => {}
-            StateClient::Status => {}
-            StateClient::Login => {}
-            StateClient::Transfer => {}
-        }
+    pub fn process_packet(&mut self, packet: &mut Packet) -> Result<(), Box<dyn Error>> {
+        println!(
+            "packet id = {} for status {:?}",
+            packet.packet_id, self.status
+        );
+        let handler: &HandlerFunction = match self.status {
+            Handshaking => HANDSHAKE_HANDLERS
+                .get(&packet.packet_id)
+                .unwrap_or_else(|| {
+                    panic!(
+                        "no handle fn for packetID {}: Handshaking",
+                        packet.packet_id
+                    )
+                }),
+            Target => HANDSHAKE_HANDLERS
+                .get(&packet.packet_id)
+                .unwrap_or_else(|| {
+                    panic!("no handle fn for packetID {}: Target", packet.packet_id)
+                }),
+            Status => STATUS_HANDLERS.get(&packet.packet_id).unwrap_or_else(|| {
+                panic!("no handle fn for packetID {}: Status", packet.packet_id)
+            }),
+            Login => LOGIN_HANDLERS
+                .get(&packet.packet_id)
+                .unwrap_or_else(|| panic!("no handle fn for packetID {}: Login", packet.packet_id)),
+            Transfer => TRANSFER_HANDLERS.get(&packet.packet_id).unwrap_or_else(|| {
+                panic!("no handle fn for packetID {}: Transfer", packet.packet_id)
+            }),
+        };
+        handler(self, packet).expect("handler packet failed");
         Ok(())
     }
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let mut handlers: HashMap<i64, Box<dyn PacketHandler>> = HashMap::new();
     let clients_arc = Arc::new(Mutex::new(Vec::<Client>::new()));
     let clients_arc_clone = Arc::clone(&clients_arc);
-    let listener = TcpListener::bind("localhost:25565").unwrap();
+    let listener = TcpListener::bind("127.0.0.1:25565").unwrap();
     let client_thread = thread::spawn(move || {
         loop {
             let mut clients = clients_arc.lock().unwrap();
             let mut bad_clients: Vec<usize> = Vec::new();
             for (index, client) in clients.iter_mut().enumerate() {
-                let packet = match Packet::new(&mut client.tcp_stream) {
+                let mut packet = match Packet::new(client) {
                     Ok(pck) => pck,
                     Err(e) => {
                         if let Some(io_error) = e.downcast_ref::<io::Error>() {
-                            match io_error.kind() {
-                                WouldBlock => continue,
-                                _ => {}
+                            if io_error.kind() == WouldBlock {
+                                continue;
                             }
                         }
                         eprintln!("Error when crafting packet: {e}");
@@ -99,10 +129,10 @@ fn main() -> Result<(), Box<dyn Error>> {
                         continue;
                     }
                 };
-                client.process_packet(&packet).unwrap()
+                client.process_packet(&mut packet).unwrap()
             }
-            for &pos in bad_clients.iter().rev() { //removing client  that give an error before
-                eprintln!("removing client from vec");
+            for &pos in bad_clients.iter().rev() {
+                //removing client  that give an error before
                 clients.remove(pos);
             }
             drop(clients);
@@ -117,15 +147,18 @@ fn main() -> Result<(), Box<dyn Error>> {
                 break;
             }
         };
-        println!("adding client ");
         let client: Client = Client {
-            status: StateClient::Handshaking,
+            status: Handshaking,
             tcp_stream,
             addr,
+            prot_version: 0,
+            server_address: String::new(),
+            server_port: 0,
+            left_over_packet: None,
         };
         client.tcp_stream.set_nonblocking(true).unwrap();
         clients_arc_clone.lock().unwrap().push(client);
     }
     client_thread.join().unwrap();
-    return Ok(());
+    Ok(())
 }
