@@ -32,7 +32,7 @@ fn main() {
     println!("listener created {:?}", listener);
     for stream in listener.incoming() {
         let mut stream = stream.unwrap();
-        thread::spawn(|| {
+        thread::spawn(move || {
             let packet = Packet::new(&mut stream);
             client::process_packet(packet)
         });
