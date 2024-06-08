@@ -1,7 +1,3 @@
-use std::error::Error;
-use std::io::Write;
-use std::net::TcpStream;
-
 pub trait MSerialize {
     fn to_bytes_representation(&self) -> Box<[u8]>;
 }

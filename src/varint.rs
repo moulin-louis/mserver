@@ -8,7 +8,7 @@ use bincode::error::EncodeError;
 use mserialize::MSerialize;
 
 #[derive(Debug)]
-pub struct VarInt(i64);
+pub struct VarInt(pub i64);
 
 
 impl VarInt {
@@ -41,6 +41,12 @@ impl Display for VarInt {
 impl From<i64> for VarInt {
     fn from(value: i64) -> Self {
         Self(value)
+    }
+}
+
+impl Into<usize> for VarInt {
+    fn into(self) -> usize {
+        self.0.clone() as usize
     }
 }
 

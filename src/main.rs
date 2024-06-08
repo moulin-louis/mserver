@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::error::Error;
-use std::net::{SocketAddr, TcpListener};
+use std::io::ErrorKind::WouldBlock;
+use std::io::Read;
+use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::thread::sleep;
@@ -9,7 +11,6 @@ use std::time::Duration;
 use lazy_static::lazy_static;
 use uuid::Uuid;
 
-use crate::connection::ClientConnection;
 use crate::mpacket::{Packet, PacketError};
 use crate::mstring::MString;
 use crate::StateClient::*;
@@ -89,13 +90,14 @@ lazy_static! {
 #[derive(Debug)]
 struct Client {
     status: StateClient,
-    connection: ClientConnection,
+    tcp_stream: TcpStream,
     addr: SocketAddr,
     prot_version: VarInt,
     server_address: MString,
     server_port: u16,
     username: MString,
     uuid: Uuid,
+    bytes: Vec<u8>,
     // cursor_packet: Cursor<Vec<u8>>,
 }
 
@@ -126,6 +128,31 @@ impl Client {
         handler(self, packet).expect("handler packet failed");
         Ok(())
     }
+
+    pub fn fetch_bytes(&mut self) -> Result<usize, Box<dyn Error>> {
+        let mut total_bytes_read = 0;
+        loop {
+            let mut buff: [u8; 1024] = [0; 1024];
+            match self.tcp_stream.read(&mut buff) {
+                Ok(x) => {
+                    if x == 0 {
+                        break;
+                    }
+                    total_bytes_read += x;
+                    self.bytes.append(&mut buff[0..=x].to_vec());
+                }
+                Err(e) => {
+                    if e.kind() == WouldBlock {
+                        break;
+                    }
+                    return Err(Box::new(e));
+                }
+            }
+        }
+        // println!("done reading {} bytes", total_bytes_read);
+        println!("current byte buff = {:02X?}", self.bytes);
+        Ok(total_bytes_read)
+    }
 }
 
 fn handle_clients(clients_arc: Arc<Mutex<Vec<Client>>>) {
@@ -133,11 +160,12 @@ fn handle_clients(clients_arc: Arc<Mutex<Vec<Client>>>) {
         let mut clients = clients_arc.lock().unwrap();
         let mut bad_clients: Vec<usize> = Vec::new();
         for (index, client) in clients.iter_mut().enumerate() {
+            client.fetch_bytes().unwrap();
             let mut packet = match Packet::new(client) {
                 Ok(pck) => pck,
                 Err(e) => {
                     if e.is::<PacketError>() {
-                        eprintln!("packeterror, not enough byte to make a packet, continuing");
+                        // eprintln!("packeterror, not enough byte to make a packet, continuing");
                         continue;
                     }
                     eprintln!("Error when crafting packet: {e}");
@@ -152,14 +180,14 @@ fn handle_clients(clients_arc: Arc<Mutex<Vec<Client>>>) {
             clients.remove(pos);
         }
         drop(clients);
-        sleep(Duration::from_millis(800));
+        sleep(Duration::from_millis(100));
     }
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
     let clients_arc = Arc::new(Mutex::new(Vec::<Client>::new()));
     let clients_arc_clone = Arc::clone(&clients_arc);
-    let listener = TcpListener::bind("localhost:25565").unwrap();
+    let listener = TcpListener::bind("127.0.0.1:25565").unwrap();
     let client_thread = thread::spawn(move || {
         handle_clients(clients_arc);
     });
@@ -173,15 +201,16 @@ fn main() -> Result<(), Box<dyn Error>> {
         };
         let client: Client = Client {
             status: Handshaking,
-            connection: ClientConnection::new(tcp_stream),
+            tcp_stream,
             addr,
             prot_version: 0.into(),
             server_address: MString::new(),
             server_port: 0,
             username: MString::new(),
             uuid: Uuid::nil(),
+            bytes: Vec::new(),
         };
-        // client.connection.set_nonblocking(true).unwrap();
+        client.tcp_stream.set_nonblocking(true).unwrap();
         clients_arc_clone.lock().unwrap().push(client);
         println!("adding one client");
     }

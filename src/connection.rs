@@ -17,7 +17,7 @@ impl ClientConnection {
 
     pub fn new(tcp_stream: TcpStream) -> Self {
         ClientConnection {
-            tcp_stream
+            tcp_stream,
         }
     }
 
