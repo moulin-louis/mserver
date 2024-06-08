@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+function_name = "0.3.0"
 lazy_static = "1.4.0"
 leb128 = "0.2.5"
 serde = { version = "1.0.203", features = ["derive"] }

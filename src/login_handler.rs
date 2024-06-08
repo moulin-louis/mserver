@@ -3,19 +3,20 @@ use std::io::Write;
 
 use uuid::Uuid;
 
-use crate::Client;
 use crate::mpacket::Packet;
+use crate::mstring::MString;
+use crate::Client;
 
 struct LoginProperty {
-    name: String,
-    value: String,
+    name: MString,
+    value: MString,
     is_signed: bool,
     signature: Option<String>,
 }
 
 struct LoginSuccess {
     uuid: Uuid,
-    username: String,
+    username: MString,
     nbr_props: i64,
     props: LoginProperty,
     strict_error_handling: bool,
@@ -46,8 +47,8 @@ pub fn login_success(client: &mut Client, packet: &mut Packet) -> Result<(), Box
         username: client.username.clone(),
         nbr_props: 0,
         props: LoginProperty {
-            name: "toto".to_string(),
-            value: "tata".to_string(),
+            name: "toto".into(),
+            value: "tata".into(),
             is_signed: false,
             signature: None,
         },
@@ -55,6 +56,7 @@ pub fn login_success(client: &mut Client, packet: &mut Packet) -> Result<(), Box
     };
     unsafe {
         client
+            .connection
             .tcp_stream
             .write_all(any_as_u8_slice(&loginSuccess))
             .unwrap();
