@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::error::Error;
-use std::io::Write;
-use std::net::{SocketAddr, TcpListener, TcpStream};
+use std::net::{SocketAddr, TcpListener};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::thread::sleep;
@@ -10,18 +9,22 @@ use std::time::Duration;
 use lazy_static::lazy_static;
 use uuid::Uuid;
 
+use crate::connection::ClientConnection;
+use crate::mpacket::{Packet, PacketError};
 use crate::mstring::MString;
-use mpacket::Packet;
-
-use crate::varint::VarInt;
 use crate::StateClient::*;
+use crate::varint::VarInt;
 
 mod handshaking_handler;
 mod login_handler;
+mod status_handler;
 mod mpacket;
 mod mstring;
-mod status_handler;
 mod varint;
+mod varlong;
+mod connection;
+mod muuid;
+
 
 #[derive(Debug, Eq, PartialEq)]
 enum StateClient {
@@ -41,50 +44,47 @@ lazy_static! {
         m
     };
     static ref TARGET_HANDLERS_FROMCLIENT: HashMap<i64, HandlerFunction> = {
-        let mut m: HashMap<i64, HandlerFunction> = HashMap::new();
+        let m: HashMap<i64, HandlerFunction> = HashMap::new();
         m
     };
-    static ref TARGET_HANDLERS_TOCLIENT: HashMap<i64, HandlerFunction> = {
-        let mut m: HashMap<i64, HandlerFunction> = HashMap::new();
-        m
-    };
+    // static ref TARGET_HANDLERS_TOCLIENT: HashMap<i64, HandlerFunction> = {
+    //     let m: HashMap<i64, HandlerFunction> = HashMap::new();
+    //     m
+    // };
     static ref STATUS_HANDLERS_FROMCLIENT: HashMap<i64, HandlerFunction> = {
         let mut m: HashMap<i64, HandlerFunction> = HashMap::new();
-        m.insert(0x00, status_handler::ping_start);
-        m.insert(0x01, status_handler::status_request);
+        m.insert(0x00, status_handler::status_request);
+        m.insert(0x01, status_handler::ping_request);
         m
     };
-    static ref STATUS_HANDLERS_TOCLIENT: HashMap<i64, HandlerFunction> = {
-        let mut m: HashMap<i64, HandlerFunction> = HashMap::new();
-        m.insert(0x00, status_handler::status_response);
-        m.insert(0x01, status_handler::pingToClient);
-        m
-    };
+    // static ref STATUS_HANDLERS_TOCLIENT: HashMap<i64, HandlerFunction> = {
+    //     let mut m: HashMap<i64, HandlerFunction> = HashMap::new();
+    //     m.insert(0x00, status_handler::status_response);
+    //     m.insert(0x01, status_handler::ping_to_client);
+    //     m
+    // };
     static ref LOGIN_HANDLERS_FROMCLIENT: HashMap<i64, HandlerFunction> = {
         let mut m: HashMap<i64, HandlerFunction> = HashMap::new();
         m.insert(0x0, login_handler::login_start);
         m.insert(0x05, login_handler::cookie_request);
         m
     };
-    static ref LOGIN_HANDLERS_TOCLIENT: HashMap<i64, HandlerFunction> = {
-        let mut m: HashMap<i64, HandlerFunction> = HashMap::new();
-        m.insert(0x02, login_handler::login_success);
-        m
-    };
+    // static ref LOGIN_HANDLERS_TOCLIENT: HashMap<i64, HandlerFunction> = {
+    //     let mut m: HashMap<i64, HandlerFunction> = HashMap::new();
+    //     m.insert(0x02, login_handler::login_success);
+    //     m
+    // };
     static ref TRANSFER_HANDLERS_FROMCLIENT: HashMap<i64, HandlerFunction> = {
-        let mut m: HashMap<i64, HandlerFunction> = HashMap::new();
+        let m: HashMap<i64, HandlerFunction> = HashMap::new();
         m
     };
-    static ref TRANSFER_HANDLERS_TOCLIENT: HashMap<i64, HandlerFunction> = {
-        let mut m: HashMap<i64, HandlerFunction> = HashMap::new();
-        m
-    };
+    // static ref TRANSFER_HANDLERS_TOCLIENT: HashMap<i64, HandlerFunction> = {
+    //     let m: HashMap<i64, HandlerFunction> = HashMap::new();
+    //     m
+    // };
 }
 
-#[derive(Debug)]
-struct ClientConnection {
-    tcp_stream: TcpStream,
-}
+
 
 #[derive(Debug)]
 struct Client {
@@ -94,7 +94,6 @@ struct Client {
     prot_version: VarInt,
     server_address: MString,
     server_port: u16,
-    bytes_packet: Vec<u8>,
     username: MString,
     uuid: Uuid,
     // cursor_packet: Cursor<Vec<u8>>,
@@ -107,32 +106,22 @@ impl Client {
             packet.packet_id, self.status
         );
         let handler: &HandlerFunction = match self.status {
-            Handshaking => HANDSHAKE_HANDLERS_FROMCLIENT
-                .get(&packet.packet_id.get_val())
-                .unwrap_or_else(|| {
-                    panic!(
-                        "no handle fn for packetID {}: Handshaking",
-                        packet.packet_id
-                    )
-                }),
-            Target => TARGET_HANDLERS_FROMCLIENT
-                .get(&packet.packet_id.get_val())
-                .unwrap_or_else(|| {
-                    panic!("no handle fn for packetID {}: Target", packet.packet_id)
-                }),
-            Status => STATUS_HANDLERS_FROMCLIENT
-                .get(&packet.packet_id.get_val())
-                .unwrap_or_else(|| {
-                    panic!("no handle fn for packetID {}: Status", packet.packet_id)
-                }),
-            Login => LOGIN_HANDLERS_FROMCLIENT
-                .get(&packet.packet_id.get_val())
-                .unwrap_or_else(|| panic!("no handle fn for packetID {}: Login", packet.packet_id)),
-            Transfer => TRANSFER_HANDLERS_FROMCLIENT
-                .get(&packet.packet_id.get_val())
-                .unwrap_or_else(|| {
-                    panic!("no handle fn for packetID {}: Transfer", packet.packet_id)
-                }),
+            Handshaking => HANDSHAKE_HANDLERS_FROMCLIENT.get(&packet.packet_id.get_val()).unwrap_or_else(|| {
+                panic!(
+                    "no handle fn for packetID {}: Handshaking",
+                    packet.packet_id
+                )
+            }),
+            Target => TARGET_HANDLERS_FROMCLIENT.get(&packet.packet_id.get_val()).unwrap_or_else(|| {
+                panic!("no handle fn for packetID {}: Target", packet.packet_id)
+            }),
+            Status => STATUS_HANDLERS_FROMCLIENT.get(&packet.packet_id.get_val()).unwrap_or_else(|| {
+                panic!("no handle fn for packetID {}: Status", packet.packet_id)
+            }),
+            Login => LOGIN_HANDLERS_FROMCLIENT.get(&packet.packet_id.get_val()).unwrap_or_else(|| panic!("no handle fn for packetID {}: Login", packet.packet_id)),
+            Transfer => TRANSFER_HANDLERS_FROMCLIENT.get(&packet.packet_id.get_val()).unwrap_or_else(|| {
+                panic!("no handle fn for packetID {}: Transfer", packet.packet_id)
+            }),
         };
         handler(self, packet).expect("handler packet failed");
         Ok(())
@@ -147,18 +136,19 @@ fn handle_clients(clients_arc: Arc<Mutex<Vec<Client>>>) {
             let mut packet = match Packet::new(client) {
                 Ok(pck) => pck,
                 Err(e) => {
+                    if e.is::<PacketError>() {
+                        eprintln!("packeterror, not enough byte to make a packet, continuing");
+                        continue;
+                    }
                     eprintln!("Error when crafting packet: {e}");
                     bad_clients.push(index);
                     continue;
                 }
             };
             client.process_packet(&mut packet).unwrap();
-            client
-                .bytes_packet
-                .append(&mut packet.return_leftover().unwrap());
         }
         for &pos in bad_clients.iter().rev() {
-            //removing client  that give an error before
+            println!("removing one client");
             clients.remove(pos);
         }
         drop(clients);
@@ -183,17 +173,17 @@ fn main() -> Result<(), Box<dyn Error>> {
         };
         let client: Client = Client {
             status: Handshaking,
-            connection: ClientConnection { tcp_stream },
+            connection: ClientConnection::new(tcp_stream),
             addr,
             prot_version: 0.into(),
             server_address: MString::new(),
             server_port: 0,
-            bytes_packet: Vec::new(),
             username: MString::new(),
             uuid: Uuid::nil(),
         };
-        client.connection.tcp_stream.set_nonblocking(true).unwrap();
+        // client.connection.set_nonblocking(true).unwrap();
         clients_arc_clone.lock().unwrap().push(client);
+        println!("adding one client");
     }
     client_thread.join().unwrap();
     Ok(())

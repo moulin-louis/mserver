@@ -1,3 +1,4 @@
+workspace = { members = ["mserialize", "mserialize-derive-macro"] }
 [package]
 name = "mserver"
 version = "0.1.0"
@@ -5,9 +6,24 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+
+[[bin]]
+name = "mserver"
+path = "src/main.rs"
+
+
 [dependencies]
+byteorder = "1.5.0"
 function_name = "0.3.0"
 lazy_static = "1.4.0"
 leb128 = "0.2.5"
 serde = { version = "1.0.203", features = ["derive"] }
 uuid = { version = "1.8.0", features = ["v4", "fast-rng", "macro-diagnostics"] }
+quote = "1.0.36"
+syn = { version = "2.0.66", features = ["full"] }
+proc-macro2 = "1.0.85"
+bincode = "2.0.0-rc.3"
+mserialize = { path = "mserialize" }
+mserialize-derive-macro = { path = "mserialize-derive-macro" }
+serde_json = "1.0.117"
+varint-simd = { version = "0.4.0", features = ["native-optimizations"] }
