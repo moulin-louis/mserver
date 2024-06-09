@@ -5,6 +5,7 @@
       <sourceFolder url="file://$MODULE_DIR$/mserialize-derive-macro/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/mserialize/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/mserialize-derive-macro/tests" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />

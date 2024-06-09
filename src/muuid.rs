@@ -1,18 +1,26 @@
-use bincode::enc::Encoder;
 use bincode::Encode;
-use bincode::error::EncodeError;
-use uuid::Uuid;
+use serde::Serialize;
+use uuid::{Bytes, Uuid};
 
-pub struct MUuid(Uuid);
+use mserialize::MSerialize;
 
-impl Encode for MUuid {
-    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
-        bincode::Encode::encode(&self.0.as_bytes(), encoder)
+#[derive(Serialize, Debug, Copy, Clone, Encode)]
+pub struct Muuid(Bytes);
+
+impl MSerialize for Muuid {
+    fn to_bytes_representation(&self) -> Box<[u8]> {
+        Box::new(self.0.clone())
     }
 }
 
-impl From<Uuid> for MUuid {
-    fn from(value: Uuid) -> Self {
+impl From<Bytes> for Muuid {
+    fn from(value: Bytes) -> Self {
         Self(value)
+    }
+}
+
+impl From<Uuid> for Muuid {
+    fn from(value: Uuid) -> Self {
+        Self(value.into_bytes())
     }
 }

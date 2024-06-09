@@ -1,31 +1,28 @@
 use std::error::Error;
-use bincode::{Encode};
-use bincode::enc::Encoder;
 
-use crate::Client;
-use crate::mpacket::Packet;
-use crate::mstring::MString;
-use crate::varint::VarInt;
-use mserialize::MSerialize;
+use bincode::Encode;
+use function_name::named;
+
 use mserialize_derive_macro::MSerialize;
-use crate::muuid::MUuid;
 
+use crate::{Client, StateClient};
+use crate::mpacket::Packet;
+use crate::muuid::Muuid;
+use crate::varint::VarInt;
 
-#[derive(Encode, MSerialize)]
-struct LoginProperty {
-    name: MString,
-    value: MString,
-    is_signed: bool,
-    signature: Option<String>,
-
-}
+// #[derive(Encode, MSerialize)]
+// struct LoginProperty {
+//     name: String,
+//     value: String,
+//     is_signed: bool,
+//     signature: Option<String>,
+// }
 
 #[derive(Encode, MSerialize)]
 struct LoginSuccess {
-    uuid: MUuid,
-    username: MString,
+    uuid: Muuid,
+    username: String,
     nbr_props: VarInt,
-    props: LoginProperty,
     strict_error_handling: bool,
 }
 
@@ -37,25 +34,25 @@ pub fn cookie_request(_client: &mut Client, packet: &mut Packet) -> Result<(), B
 
 pub fn login_start(client: &mut Client, packet: &mut Packet) -> Result<(), Box<dyn Error>> {
     client.username = packet.read_string().unwrap();
-    println!("username = {}", &client.username);
     client.uuid = packet.read_uuid().unwrap();
-    Ok(())
+    login_success(client, packet)
 }
-
 
 pub fn login_success(client: &mut Client, _packet: &mut Packet) -> Result<(), Box<dyn Error>> {
     let login_success = LoginSuccess {
-        uuid: client.uuid.into(),
+        uuid: client.uuid,
         username: client.username.clone(),
         nbr_props: 0.into(),
-        props: LoginProperty {
-            name: "toto".into(),
-            value: "tata".into(),
-            is_signed: false,
-            signature: None,
-        },
         strict_error_handling: true,
     };
-    // client.connection.write_struct(login_success).unwrap();
+    // login_success.to_bytes_representation();
+    Packet::send_packet(0x02, &login_success, &mut client.tcp_stream).unwrap();
+    Ok(())
+}
+
+#[named]
+pub fn login_ack(client: &mut Client, packet: &mut Packet) -> Result<(), Box<dyn Error>> {
+    println!("called fn {}", function_name!());
+    client.status = StateClient::Configuration;
     Ok(())
 }

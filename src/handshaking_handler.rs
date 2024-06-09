@@ -1,9 +1,8 @@
 use std::error::Error;
-use std::io::{Read, Cursor};
-
-use crate::mpacket::Packet;
+use std::io::Read;
 
 use crate::Client;
+use crate::mpacket::Packet;
 use crate::StateClient::{Login, Status, Target, Transfer};
 
 pub fn set_protocol(client: &mut Client, packet: &mut Packet) -> Result<(), Box<dyn Error>> {
@@ -21,6 +20,5 @@ pub fn set_protocol(client: &mut Client, packet: &mut Packet) -> Result<(), Box<
         3 => Transfer,
         err => panic!("PANIC WRONG NEXT STATE: got {err}"),
     };
-    println!("client = {:?}", client);
     Ok(())
 }

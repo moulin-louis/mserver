@@ -1,12 +1,10 @@
 use std::error::Error;
 
 use byteorder::{BigEndian, ReadBytesExt};
-use function_name::named;
 use serde::Serialize;
 
 use crate::Client;
 use crate::mpacket::Packet;
-use crate::mstring::MString;
 
 #[derive(Serialize)]
 struct VersionInfo {
@@ -42,7 +40,6 @@ struct StatusResponse {
     previewsChat: bool,
 }
 
-#[named]
 pub fn status_response(client: &mut Client, packet: &mut Packet) -> Result<(), Box<dyn Error>> {
     let status_res = StatusResponse {
         version: VersionInfo {
@@ -64,7 +61,7 @@ pub fn status_response(client: &mut Client, packet: &mut Packet) -> Result<(), B
         enforcesSecureChat: false,
         previewsChat: false,
     };
-    let json: MString = serde_json::to_string(&status_res).unwrap().into();
+    let json: String = serde_json::to_string(&status_res).unwrap();
     Packet::send_packet(0x00, &json, &mut client.tcp_stream)
 }
 

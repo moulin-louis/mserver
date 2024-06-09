@@ -3,6 +3,9 @@ workspace = { members = ["mserialize", "mserialize-derive-macro"] }
 name = "mserver"
 version = "0.1.0"
 edition = "2021"
+authors = ["Louis MOULIN(@moulin-louis) <louis.moulin@outlook.fr>"]
+repository = "https://github.com/moulin-louis/mserver"
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -10,6 +13,15 @@ edition = "2021"
 [[bin]]
 name = "mserver"
 path = "src/main.rs"
+
+[build]
+rustflags = ["-C", "target-cpu=native"]
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.dev]
+opt-level = 1
 
 
 [dependencies]
@@ -23,7 +35,9 @@ quote = "1.0.36"
 syn = { version = "2.0.66", features = ["full"] }
 proc-macro2 = "1.0.85"
 bincode = "2.0.0-rc.3"
-mserialize = { path = "mserialize" }
-mserialize-derive-macro = { path = "mserialize-derive-macro" }
 serde_json = "1.0.117"
 varint-simd = { version = "0.4.0", features = ["native-optimizations"] }
+bevy_ecs = { version = "0.13.2" }
+# my crates POGGERS
+mserialize = { path = "mserialize" }
+mserialize-derive-macro = { path = "mserialize-derive-macro" }

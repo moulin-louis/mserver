@@ -9,3 +9,4 @@ edition = "2021"
 name = "mserialize"
 
 [dependencies]
+leb128 = "0.2.5"

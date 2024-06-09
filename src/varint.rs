@@ -4,10 +4,11 @@ use std::io::Write;
 use bincode::enc::Encoder;
 use bincode::Encode;
 use bincode::error::EncodeError;
+use serde::Serialize;
 
 use mserialize::MSerialize;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Default)]
 pub struct VarInt(pub i64);
 
 
