@@ -3,12 +3,16 @@ use std::error::Error;
 use std::io::ErrorKind::WouldBlock;
 use std::io::Read;
 use std::net::{SocketAddr, TcpStream};
+use std::sync::{Arc, Mutex};
 
-use crate::{CONFIGURATION_HANDLERS, HandlerFunction, HANDSHAKE_HANDLERS, LOGIN_HANDLERS, PLAY_HANDLERS, StateClient, STATUS_HANDLERS, TARGET_HANDLERS, TRANSFER_HANDLERS};
-use crate::mpacket::Packet;
-use crate::muuid::Muuid;
-use crate::StateClient::{Configuration, Handshaking, Login, Play, Status, Target, Transfer};
-use crate::varint::VarInt;
+use bevy_ecs::world::World;
+
+use mserver_mpacket::mpacket::Packet;
+use mserver_types::muuid::Muuid;
+use mserver_types::varint::VarInt;
+
+use crate::state::{HandlerFunction, StateClient};
+use crate::state::*;
 
 #[derive(Debug, Default)]
 pub struct ClientInfo {
@@ -24,6 +28,7 @@ pub struct ClientInfo {
 
 #[derive(Debug)]
 pub struct Client {
+    pub world: Arc<Mutex<World>>,
     pub status: StateClient,
     pub tcp_stream: TcpStream,
     pub addr: SocketAddr,
@@ -44,25 +49,25 @@ impl Client {
             packet.packet_id.0, self.status
         );
         let handler: &HandlerFunction = match self.status {
-            Handshaking => HANDSHAKE_HANDLERS.get(&packet.packet_id.get_val()).unwrap_or_else(|| {
+            StateClient::Handshaking => HANDSHAKE_HANDLERS.get(&packet.packet_id.get_val()).unwrap_or_else(|| {
                 panic!("no handle fn for packetID {}: Handshaking", packet.packet_id)
             }),
-            Status => STATUS_HANDLERS.get(&packet.packet_id.get_val()).unwrap_or_else(|| {
+            StateClient::Status => STATUS_HANDLERS.get(&packet.packet_id.get_val()).unwrap_or_else(|| {
                 panic!("no handle fn for packetID {}: Status", packet.packet_id)
             }),
-            Login => LOGIN_HANDLERS.get(&packet.packet_id.get_val()).unwrap_or_else(|| {
+            StateClient::Login => LOGIN_HANDLERS.get(&packet.packet_id.get_val()).unwrap_or_else(|| {
                 panic!("no handle fn for packetID {}: Login", packet.packet_id)
             }),
-            Configuration => CONFIGURATION_HANDLERS.get(&packet.packet_id.get_val()).unwrap_or_else(|| {
+            StateClient::Configuration => CONFIGURATION_HANDLERS.get(&packet.packet_id.get_val()).unwrap_or_else(|| {
                 panic!("no handle fn for packetID {:#02X}: Configuration", packet.packet_id.0)
             }),
-            Play => PLAY_HANDLERS.get(&packet.packet_id.get_val()).unwrap_or_else(|| {
+            StateClient::Play => PLAY_HANDLERS.get(&packet.packet_id.get_val()).unwrap_or_else(|| {
                 panic!("no handle fn for packetID {:#02X}: Play", packet.packet_id.0)
             }),
-            Target => TARGET_HANDLERS.get(&packet.packet_id.get_val()).unwrap_or_else(|| {
+            StateClient::Target => TARGET_HANDLERS.get(&packet.packet_id.get_val()).unwrap_or_else(|| {
                 panic!("no handle fn for packetID {}: Target", packet.packet_id)
             }),
-            Transfer => TRANSFER_HANDLERS.get(&packet.packet_id.get_val()).unwrap_or_else(|| {
+            StateClient::Transfer => TRANSFER_HANDLERS.get(&packet.packet_id.get_val()).unwrap_or_else(|| {
                 panic!("no handle fn for packetID {}: Transfer", packet.packet_id)
             }),
         };
@@ -74,12 +79,9 @@ impl Client {
         let mut total_bytes_read = 0;
         loop {
             let mut buff: [u8; 1] = [0];
-            match self.tcp_stream.read(&mut buff) {
-                Ok(x) => {
-                    if x == 0 {
-                        break;
-                    }
-                    total_bytes_read += x;
+            match self.tcp_stream.read_exact(&mut buff) {
+                Ok(_) => {
+                    total_bytes_read += 1;
                     self.bytes.push(buff[0]);
                 }
                 Err(e) => {

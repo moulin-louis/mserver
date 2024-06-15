@@ -6,6 +6,12 @@
       <sourceFolder url="file://$MODULE_DIR$/mserialize/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/mserialize-derive-macro/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/mserver-client/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/mserver-connection/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/mserver-mpacket/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/mserver-state-handler/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/mserver-types/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/mserver-entity/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />

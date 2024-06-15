@@ -3,8 +3,9 @@ use std::error::Error;
 use byteorder::{BigEndian, ReadBytesExt};
 use serde::Serialize;
 
-use crate::Client;
-use crate::mpacket::Packet;
+use mserver_mpacket::mpacket::Packet;
+
+use crate::client::Client;
 
 #[derive(Serialize)]
 struct VersionInfo {
@@ -40,11 +41,11 @@ struct StatusResponse {
     previewsChat: bool,
 }
 
-pub fn status_response(client: &mut Client, packet: &mut Packet) -> Result<(), Box<dyn Error>> {
+pub fn status_response(client: &mut Client, _packet: &mut Packet) -> Result<(), Box<dyn Error>> {
     let status_res = StatusResponse {
         version: VersionInfo {
-            name: "1.20.6".to_string(),
-            protocol: 766,
+            name: "1.21".to_string(),
+            protocol: 767,
         },
         players: PlayerInfo {
             max: 50,

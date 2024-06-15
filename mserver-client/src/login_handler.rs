@@ -1,22 +1,14 @@
 use std::error::Error;
 
 use bincode::Encode;
-use function_name::named;
 
 use mserialize_derive_macro::MSerialize;
+use mserver_mpacket::mpacket::Packet;
+use mserver_types::muuid::Muuid;
+use mserver_types::varint::VarInt;
 
-use crate::{Client, StateClient};
-use crate::mpacket::Packet;
-use crate::muuid::Muuid;
-use crate::varint::VarInt;
-
-// #[derive(Encode, MSerialize)]
-// struct LoginProperty {
-//     name: String,
-//     value: String,
-//     is_signed: bool,
-//     signature: Option<String>,
-// }
+use crate::client::Client;
+use crate::state::StateClient;
 
 #[derive(Encode, MSerialize)]
 struct LoginSuccess {
@@ -50,9 +42,7 @@ pub fn login_success(client: &mut Client, _packet: &mut Packet) -> Result<(), Bo
     Ok(())
 }
 
-#[named]
-pub fn login_ack(client: &mut Client, packet: &mut Packet) -> Result<(), Box<dyn Error>> {
-    println!("called fn {}", function_name!());
+pub fn login_ack(client: &mut Client, _packet: &mut Packet) -> Result<(), Box<dyn Error>> {
     client.status = StateClient::Configuration;
     Ok(())
 }

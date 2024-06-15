@@ -8,25 +8,25 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="457f0195-6085-4c0e-ab30-d52f035bfedb" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/src/client.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/configuration_handlers.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/play_handler.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/mserver-client/src/state.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/mserver.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/mserver.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/mserialize-derive-macro/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/mserialize-derive-macro/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mserialize-derive-macro/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/mserialize-derive-macro/src/lib.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mserialize/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/mserialize/Cargo.toml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/mserialize/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/mserialize/src/lib.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/handshaking_handler.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/handshaking_handler.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/login_handler.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/login_handler.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/client.rs" beforeDir="false" afterPath="$PROJECT_DIR$/mserver-client/src/client.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/configuration_handlers.rs" beforeDir="false" afterPath="$PROJECT_DIR$/mserver-client/src/configuration_handlers.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/connection.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/handshaking_handler.rs" beforeDir="false" afterPath="$PROJECT_DIR$/mserver-client/src/handshaking_handler.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/login_handler.rs" beforeDir="false" afterPath="$PROJECT_DIR$/mserver-client/src/login_handler.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mpacket.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/mpacket.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mstring.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/muuid.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/muuid.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/status_handler.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/status_handler.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/varint.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/varint.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mpacket.rs" beforeDir="false" afterPath="$PROJECT_DIR$/mserver-mpacket/src/mpacket.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/muuid.rs" beforeDir="false" afterPath="$PROJECT_DIR$/mserver-types/src/muuid.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/play_handler.rs" beforeDir="false" afterPath="$PROJECT_DIR$/mserver-client/src/play_handler.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/status_handler.rs" beforeDir="false" afterPath="$PROJECT_DIR$/mserver-client/src/status_handler.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/varint.rs" beforeDir="false" afterPath="$PROJECT_DIR$/mserver-types/src/varint.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/varlong.rs" beforeDir="false" afterPath="$PROJECT_DIR$/mserver-types/src/varlong.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -67,6 +67,9 @@
   <component name="OptimizeOnSaveOptions">
     <option name="myRunOnSave" value="true" />
   </component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="CurrentFile" />
+  </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 3
 }</component>
@@ -91,9 +94,19 @@
     "org.rust.cargo.project.model.impl.CargoExternalSystemProjectAware.subscribe.first.balloon": "",
     "org.rust.first.attach.projects": "true",
     "rearrange.code.on.save": "true",
-    "settings.editor.selected.configurable": "advanced.settings"
+    "run.code.analysis.last.selected.profile": "pProject Default",
+    "settings.editor.selected.configurable": "editing.templates"
   }
 }]]></component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/mserver-client/src" />
+      <recent name="$PROJECT_DIR$/mserver-connection/src" />
+      <recent name="$PROJECT_DIR$/mserver-mpacket/src" />
+      <recent name="$PROJECT_DIR$/mserver-types/src" />
+      <recent name="$PROJECT_DIR$/mserver-types" />
+    </key>
+  </component>
   <component name="RsExternalLinterProjectSettings">
     <option name="runOnTheFly" value="true" />
     <option name="tool" value="Clippy" />
@@ -152,6 +165,9 @@
       <workItem from="1717928036693" duration="19000" />
       <workItem from="1717928060074" duration="5783000" />
       <workItem from="1717933850169" duration="11768000" />
+      <workItem from="1718440150585" duration="22000" />
+      <workItem from="1718440384431" duration="4566000" />
+      <workItem from="1718445042759" duration="11267000" />
     </task>
     <servers />
   </component>

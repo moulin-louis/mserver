@@ -1,0 +1,12 @@
+[package]
+name = "mserver-types"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+leb128 = "0.2.5"
+serde = { version = "1.0.203", features = ["derive"] }
+uuid = { version = "1.8.0", features = ["v4", "fast-rng", "macro-diagnostics"] }
+bincode = "2.0.0-rc.3"
+
+mserialize = { path = "../mserialize" }

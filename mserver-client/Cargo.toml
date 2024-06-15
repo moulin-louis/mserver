@@ -1,0 +1,19 @@
+[package]
+name = "mserver-client"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { features = ["default", "derive", "serde_derive"], version = "1.0.203" }
+serde_json = { features = ["default"], version = "1.0.117" }
+lazy_static = "1.4.0"
+byteorder = "1.5.0"
+bincode = "2.0.0-rc.3"
+leb128 = "0.2.5"
+bevy_ecs = "0.14.0-rc.2"
+uuid = { features = ["default", "v4", "fast-rng"], version = "1.8.0" }
+mserver-types = { path = "../mserver-types" }
+mserver-mpacket = { path = "../mserver-mpacket" }
+mserver-entity = { path = "../mserver-entity" }
+mserialize = { path = "../mserialize" }
+mserialize-derive-macro = { path = "../mserialize-derive-macro" }

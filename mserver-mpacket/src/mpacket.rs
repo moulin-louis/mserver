@@ -9,11 +9,10 @@ use uuid::Uuid;
 use varint_simd::encode;
 
 use mserialize::MSerialize;
+use mserver_types::muuid::Muuid;
+use mserver_types::varint::VarInt;
 
-use crate::Client;
 use crate::mpacket::PacketError::NotEnoughByteForPacket;
-use crate::muuid::Muuid;
-use crate::varint::VarInt;
 
 #[derive(Debug)]
 pub struct Packet {
@@ -37,15 +36,15 @@ impl Display for PacketError {
 
 
 impl Packet {
-    pub fn new(client: &mut Client) -> Result<Packet, Box<dyn Error>> {
-        let mut cursor = Cursor::new(client.bytes.clone());
+    pub fn new(bytes: &mut Vec<u8>) -> Result<Packet, Box<dyn Error>> {
+        let mut cursor = Cursor::new(bytes.clone());
 
         let length = match leb128::read::signed(&mut cursor) {
             Ok(x) => x,
             Err(_e) => return Err(Box::new(NotEnoughByteForPacket)),
         };
         let (_, bytes_len_length) = encode::<u64>(length as u64);
-        if (client.bytes.len() - bytes_len_length as usize) < length as usize {
+        if (bytes.len() - bytes_len_length as usize) < length as usize {
             return Err(Box::new(NotEnoughByteForPacket));
         }
 
@@ -53,10 +52,10 @@ impl Packet {
         let (_, bytes_packet_id_len) = encode::<u64>(packet_id as u64);
 
         let offset_data = (bytes_packet_id_len + bytes_len_length) as usize;
-        let data_slice = &client.bytes.as_slice()[offset_data..=(length as usize)];
+        let data_slice = &bytes.as_slice()[offset_data..=(length as usize)];
         let data = Cursor::new(data_slice.to_vec());
         let len_data = data_slice.len();
-        client.bytes.drain(0..offset_data + len_data);
+        bytes.drain(0..offset_data + len_data);
         Ok(Packet {
             length: length.into(),
             packet_id: packet_id.into(),
@@ -108,7 +107,9 @@ impl Packet {
 
 
     pub fn send_packet<T>(packet_id: i64, data: &T, tcp_stream: &mut TcpStream) -> Result<(), Box<dyn Error>>
-        where T: MSerialize {
+    where
+            T: MSerialize,
+    {
         let (_, len) = encode::<u64>(packet_id as u64);
         let bytes = data.to_bytes_representation();
         leb128::write::signed(tcp_stream, (len as usize + bytes.len()) as i64).expect("CANT WRITE LEN PACKET");
@@ -121,7 +122,7 @@ impl Packet {
 
     pub fn send_packet_without_data(packet_id: i64, tcp_stream: &mut TcpStream) -> Result<(), Box<dyn Error>> {
         let (_, len) = encode::<u64>(packet_id as u64);
-        leb128::write::signed(tcp_stream, len as i64 + 0).expect("CANT WRITE LEN PACKET");
+        leb128::write::signed(tcp_stream, len as i64).expect("CANT WRITE LEN PACKET");
         leb128::write::signed(tcp_stream, packet_id).expect("CANT WRITE PACKET ID");
         println!("packet sent!");
         tcp_stream.flush()?;

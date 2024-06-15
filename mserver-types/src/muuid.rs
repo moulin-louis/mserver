@@ -9,7 +9,7 @@ pub struct Muuid(Bytes);
 
 impl MSerialize for Muuid {
     fn to_bytes_representation(&self) -> Box<[u8]> {
-        Box::new(self.0.clone())
+        Box::new(self.0)
     }
 }
 

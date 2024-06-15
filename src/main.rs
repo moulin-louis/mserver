@@ -6,88 +6,28 @@ use std::thread;
 use std::thread::sleep;
 use std::time::Duration;
 
-use lazy_static::lazy_static;
+use bevy_ecs::world::World;
+use local_ip_address::linux::local_ip;
 use uuid::Uuid;
 
-use crate::client::{Client, ClientInfo};
-use crate::mpacket::{Packet, PacketError};
-use crate::StateClient::*;
-
-mod handshaking_handler;
-mod login_handler;
-mod status_handler;
-mod mpacket;
-mod varint;
-mod varlong;
-mod connection;
-mod muuid;
-mod configuration_handlers;
-mod client;
-mod play_handler;
-
-
-#[derive(Debug, Eq, PartialEq)]
-enum StateClient {
-    Handshaking,
-    Status,
-    Login,
-    Configuration,
-    Play,
-    Target,
-    Transfer,
-}
-
-type HandlerFunction = fn(client: &mut Client, packet: &mut Packet) -> Result<(), Box<dyn Error>>;
-
-lazy_static! {
-    static ref HANDSHAKE_HANDLERS: HashMap<i64, HandlerFunction> = {
-        let mut m: HashMap<i64, HandlerFunction> = HashMap::new();
-        m.insert(0x0, handshaking_handler::set_protocol);
-        m
-    };
-    static ref STATUS_HANDLERS: HashMap<i64, HandlerFunction> = {
-        let mut m: HashMap<i64, HandlerFunction> = HashMap::new();
-        m.insert(0x00, status_handler::status_request);
-        m.insert(0x01, status_handler::ping_request);
-        m
-    };
-    static ref LOGIN_HANDLERS: HashMap<i64, HandlerFunction> = {
-        let mut m: HashMap<i64, HandlerFunction> = HashMap::new();
-        m.insert(0x00, login_handler::login_start);
-        m.insert(0x03, login_handler::login_ack);
-        m.insert(0x05, login_handler::cookie_request);
-        m
-    };
-    static ref CONFIGURATION_HANDLERS: HashMap<i64, HandlerFunction> = {
-        let mut m: HashMap<i64, HandlerFunction> = HashMap::new();
-        m.insert(0x00, configuration_handlers::client_info);
-        m.insert(0x02, configuration_handlers::serv_plugin_message);
-        m.insert(0x03, configuration_handlers::finish_config_ack);
-        m
-    };
-    static ref PLAY_HANDLERS: HashMap<i64, HandlerFunction> = {
-        let m: HashMap<i64, HandlerFunction> = HashMap::new();
-        m
-    };
-    static ref TARGET_HANDLERS: HashMap<i64, HandlerFunction> = {
-        let m: HashMap<i64, HandlerFunction> = HashMap::new();
-        m
-    };
-    static ref TRANSFER_HANDLERS: HashMap<i64, HandlerFunction> = {
-        let m: HashMap<i64, HandlerFunction> = HashMap::new();
-        m
-    };
-}
-
-
+use mserver_client::client::{Client, ClientInfo};
+use mserver_client::state::StateClient;
+use mserver_mpacket::mpacket::{Packet, PacketError};
 
 fn handle_clients(clients_arc: Arc<Mutex<Vec<Client>>>) {
     loop {
         let mut clients = clients_arc.lock().unwrap();
         let mut bad_clients: Vec<usize> = Vec::new();
         for (index, client) in clients.iter_mut().enumerate() {
-            client.fetch_bytes().unwrap();
-            let mut packet = match Packet::new(client) {
+            match client.fetch_bytes() {
+                Ok(_) => {}
+                Err(e) => {
+                    eprintln!("error when reading from tcpstream {e}");
+                    bad_clients.push(index);
+                    continue;
+                }
+            }
+            let mut packet = match Packet::new(&mut client.bytes) {
                 Ok(pck) => pck,
                 Err(e) => {
                     if e.is::<PacketError>() {
@@ -112,10 +52,15 @@ fn handle_clients(clients_arc: Arc<Mutex<Vec<Client>>>) {
 fn main() -> Result<(), Box<dyn Error>> {
     let clients_arc = Arc::new(Mutex::new(Vec::<Client>::new()));
     let clients_arc_clone = Arc::clone(&clients_arc);
-    let listener = TcpListener::bind("127.0.0.1:25565").unwrap();
-    let client_thread = thread::spawn(move || {
+
+    let world = Mutex::new(World::new());
+    let world_ref = Arc::new(world);
+    let client_thread = thread::spawn(|| {
         handle_clients(clients_arc);
     });
+    let my_local_ip = local_ip().unwrap();
+    println!("my local ip = {}", my_local_ip);
+    let listener = TcpListener::bind(my_local_ip.to_string() + ":25565").unwrap();
     loop {
         let (tcp_stream, addr) = match listener.accept() {
             Ok(res) => res,
@@ -125,7 +70,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         };
         let client: Client = Client {
-            status: Handshaking,
+            world: world_ref.clone(),
+            status: StateClient::Handshaking,
             tcp_stream,
             addr,
             prot_version: 0.into(),

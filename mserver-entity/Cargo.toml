@@ -1,0 +1,9 @@
+[package]
+name = "mserver-entity"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+uuid = { features = ["v4", "fast-rng"], version = "1.8.0" }
+bevy_ecs = { features = ["default"], version = "0.14.0-rc.2" }
+mserver-types = { path = "../mserver-types" }

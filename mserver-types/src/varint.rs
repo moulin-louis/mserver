@@ -45,9 +45,15 @@ impl From<i64> for VarInt {
     }
 }
 
-impl Into<usize> for VarInt {
-    fn into(self) -> usize {
-        self.0.clone() as usize
+impl From<i32> for VarInt {
+    fn from(value: i32) -> Self {
+        Self(value as i64)
+    }
+}
+
+impl From<usize> for VarInt {
+    fn from(value: usize) -> Self {
+        Self(value as i64)
     }
 }
 

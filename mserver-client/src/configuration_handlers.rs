@@ -1,10 +1,9 @@
 use std::error::Error;
 
-use function_name::named;
+use mserver_mpacket::mpacket::Packet;
 
-use crate::{Client, StateClient};
-use crate::client::ClientInfo;
-use crate::mpacket::Packet;
+use crate::client::{Client, ClientInfo};
+use crate::state::StateClient;
 
 pub fn client_info(client: &mut Client, packet: &mut Packet) -> Result<(), Box<dyn Error>> {
     let client_info = ClientInfo {
@@ -17,10 +16,7 @@ pub fn client_info(client: &mut Client, packet: &mut Packet) -> Result<(), Box<d
         text_filtering: packet.read_bool().unwrap(),
         server_listings: packet.read_bool().unwrap(),
     };
-    println!("client info = {:?}", client_info);
     client.client_info = client_info;
-    //registry data
-    //finish config
     Packet::send_packet_without_data(0x03, &mut client.tcp_stream).unwrap();
     Ok(())
 }
@@ -32,10 +28,8 @@ pub fn serv_plugin_message(client: &mut Client, packet: &mut Packet) -> Result<(
     Ok(())
 }
 
-#[named]
 pub fn finish_config_ack(client: &mut Client, packet: &mut Packet) -> Result<(), Box<dyn Error>> {
-    println!("called fn {}", function_name!());
     println!("CONFIGURATION IS DONE!");
     client.status = StateClient::Play;
-    Ok(())
+    crate::play_handler::login(client, packet)
 }
